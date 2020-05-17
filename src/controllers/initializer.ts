@@ -11,6 +11,7 @@ import { initWhatsapp, injectApi } from './browser';
 import chalk = require('chalk');
 import boxen = require('boxen');
 import Spinnies = require('spinnies');
+import { rejects } from 'assert';
 const { version } = require('../../package.json');
 
 // Global
@@ -21,7 +22,7 @@ let updatesChecked = false;
  */
 export async function create(
   session = 'session',
-  catchQR?: (qrCode: string, asciiQR: string) => void,
+  catchQR?: (qrCode: string, asciiQR: string) => Promise<boolean>,
   options?: CreateConfig
 ) {
   const spinnies = new Spinnies();
@@ -48,29 +49,85 @@ export async function create(
     await isInsideChat(waPage).toPromise();
     spinnies.succeed(`${session}-auth`, { text: 'Authenticated' });
   } else {
-    spinnies.update(`${session}-auth`, {
-      text: `Authenticate to continue`,
-    });
+    // spinnies.update(`${session}-auth`, {
+    //   text: `Authenticate to continue`,
+    // });
 
-    if (mergedOptions.refreshQR <= 0) {
-      const { data, asciiQR } = await retrieveQR(waPage);
-      if (catchQR) {
-        catchQR(data, asciiQR);
-      }
+    // if (mergedOptions.refreshQR <= 0) {
+    //   const { data, asciiQR } = await retrieveQR(waPage);
+    //   if (catchQR) {
+    //     catchQR(data, asciiQR);
+    //   }
 
-      if (mergedOptions.logQR) {
-        console.log(`Scan QR for: ${session}                `);
-        console.log(asciiQR);
-      }
-    } else {
-      grabQRUntilInside(waPage, mergedOptions, session, catchQR);
-    }
+    //   if (mergedOptions.logQR) {
+    //     console.log(`Scan QR for: ${session}                `);
+    //     console.log(asciiQR);
+    //   }
+    // } else {
+    //   grabQRUntilInside(waPage, mergedOptions, session, catchQR);
+    // }
 
     // Wait til inside chat
-    await isInsideChat(waPage).toPromise();
+    let currentCode = '';
+    const login = new Promise(async (resolve, reject) => {
+      var check = true;
+      var result = false;
+      while (check) {
+        var codes = await retrieveQR(waPage);
+        if (codes.data == currentCode) {
+          try {
+            var element = await waPage.waitForXPath(
+              "//div[contains(text(), 'Click to reload QR code')]",
+              { timeout: 10000 }
+            );
+            if (element) {
+              await element.click();
+            }
+          } catch (e) {}
+        } else {
+          currentCode = codes.data;
+          check = await catchQR(codes.data, codes.asciiQR);
+          if (check) {
+            result = await from(
+              waPage
+                .waitForFunction(
+                  `
+              document.getElementsByClassName('app')[0] &&
+              document.getElementsByClassName('app')[0].attributes &&
+              !!document.getElementsByClassName('app')[0].attributes.tabindex
+              `,
+                  {
+                    timeout: 20000,
+                  }
+                )
+                .then(() => true)
+                .catch(() => false)
+            ).toPromise();
+
+            if (result) check = false;
+          }
+        }
+      }
+
+      if (result) {
+        resolve();
+      } else {
+        await waPage.close();
+        if (waPage.browser) {
+          await waPage.browser().close();
+          waPage.browser().process().kill();
+        }
+        reject('LoginCanceled');
+      }
+    });
+    await login;
+
+    console.log('B');
+    //await isInsideChat(waPage).toPromise()
     spinnies.succeed(`${session}-auth`, { text: 'Authenticated' });
   }
 
+  console.log('C');
   spinnies.add(`${session}-inject`, { text: 'Injecting api...' });
   waPage = await injectApi(waPage);
   spinnies.succeed(`${session}-inject`, { text: 'Injecting api' });
@@ -82,6 +139,8 @@ export async function create(
     console.log(`\nDebug: \x1b[34m${debugURL}\x1b[0m`);
   }
 
+  console.log('D');
+
   return new Whatsapp(waPage);
 }
 
@@ -91,13 +150,16 @@ function grabQRUntilInside(
   session: string,
   catchQR: (qrCode: string, asciiQR: string) => void
 ) {
+  console.log('A:1');
   const isInside = isInsideChat(waPage);
+  console.log('A:2');
   timer(0, options.refreshQR)
     .pipe(
       takeUntil(isInside),
       switchMap(() => retrieveQR(waPage))
     )
     .subscribe(({ data, asciiQR }) => {
+      console.log('A:3');
       if (catchQR) {
         catchQR(data, asciiQR);
       }
@@ -107,6 +169,7 @@ function grabQRUntilInside(
         console.log(asciiQR);
       }
     });
+  console.log('A:4');
 }
 
 /**
