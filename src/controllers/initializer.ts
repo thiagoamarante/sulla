@@ -13,6 +13,7 @@ import boxen = require('boxen');
 import Spinnies = require('spinnies');
 import { rejects } from 'assert';
 const { version } = require('../../package.json');
+import * as path from 'path';
 
 // Global
 let updatesChecked = false;
@@ -73,7 +74,31 @@ export async function create(
       var check = true;
       var result = false;
       while (check) {
-        var codes = await retrieveQR(waPage);
+        let codes = { code: null, data: null };
+        try {
+          await waPage.waitForSelector('canvas', { timeout: 2000 });
+          await waPage.addScriptTag({
+            path: require.resolve(
+              path.join(__dirname, '../lib/jsQR', 'jsQR.js')
+            ),
+          });
+          codes = await waPage.evaluate(() => {
+            const canvas = document.querySelector('canvas');
+            const context = canvas.getContext('2d');
+
+            // @ts-ignore
+            const code = jsQR(
+              context.getImageData(0, 0, canvas.width, canvas.height).data,
+              canvas.width,
+              canvas.height
+            );
+
+            return { code: code.data, data: canvas.toDataURL() };
+          });
+        } catch (e) {
+          codes = { code: null, data: null };
+        }
+
         if (codes.data == currentCode) {
           try {
             var element = await waPage.waitForXPath(
@@ -86,7 +111,7 @@ export async function create(
           } catch (e) {}
         } else {
           currentCode = codes.data;
-          check = await catchQR(codes.data, codes.asciiQR);
+          check = await catchQR(codes.data, '');
           if (check) {
             result = await from(
               waPage
