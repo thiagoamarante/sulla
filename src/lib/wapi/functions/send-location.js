@@ -7,7 +7,10 @@
  */
 export async function sendLocation(chatId, latitude, longitude, caption) {
   const chat = Store.Chat.get(chatId);
-  let tempMsg = Object.create(chat.msgs.filter((msg) => msg.__x_isSentByMe)[0]);
+  //let tempMsg = Object.create(chat.msgs.filter((msg) => msg.__x_isSentByMe)[0]);
+  var tempMsg = Object.create(
+    Store.Msg.models.filter((msg) => msg.__x_isSentByMe && !msg.quotedMsg)[0]
+  );
   const newId = window.WAPI.getNewMessageId(chatId);
   const extend = {
     ack: 0,
