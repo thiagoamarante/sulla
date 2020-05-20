@@ -205,7 +205,7 @@ export const storeObjects = [
   {
     id: 'WidFactory',
     conditions: (module) =>
-      module.numberToWid && module.createWid && module.createWidFromWidLike
+      module.isWidlike && module.createWid && module.createWidFromWidLike
         ? module
         : null,
   },

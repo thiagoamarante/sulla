@@ -18,6 +18,10 @@ import * as path from 'path';
 // Global
 let updatesChecked = false;
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Should be called to initialize whatsapp client
  */
@@ -26,49 +30,38 @@ export async function create(
   catchQR?: (qrCode: string, asciiQR: string) => Promise<boolean>,
   options?: CreateConfig
 ) {
-  const spinnies = new Spinnies();
-
   // Check for updates if needed
   if (!updatesChecked) {
-    spinnies.add('sulla-version-spinner', { text: 'Checking for updates...' });
-    checkSullaVersion(spinnies);
+    //spinnies.add('sulla-version-spinner', { text: 'Checking for updates...' });
+    //checkSullaVersion(spinnies);
     updatesChecked = true;
   }
 
   // Initialize whatsapp
-  spinnies.add(`${session}-auth`, { text: 'Creating whatsapp instace...' });
-
   const mergedOptions = { ...defaultOptions, ...options };
-  let waPage = await initWhatsapp(session, mergedOptions);
+  let waPage: Page = null;
+  let tryInitWhatsApp = true;
+  while (tryInitWhatsApp) {
+    console.log(`${session}: Creating whatsapp instace`);
+    try {
+      waPage = await initWhatsapp(session, mergedOptions);
+      tryInitWhatsApp = false;
+    } catch (e) {
+      console.log(`${session}: InitWhatsapp error`);
+    }
 
-  spinnies.update(`${session}-auth`, { text: 'Authenticating...' });
+    if (tryInitWhatsApp) await sleep(5000);
+  }
+
+  console.log(`${session}: Authenticating`);
   const authenticated = await isAuthenticated(waPage);
 
   // If not authenticated, show QR and wait for scan
   if (authenticated) {
     // Wait til inside chat
-    await isInsideChat(waPage).toPromise();
-    spinnies.succeed(`${session}-auth`, { text: 'Authenticated' });
+    //await isInsideChat(waPage).toPromise();
+    console.log(`${session}: Authenticated`);
   } else {
-    // spinnies.update(`${session}-auth`, {
-    //   text: `Authenticate to continue`,
-    // });
-
-    // if (mergedOptions.refreshQR <= 0) {
-    //   const { data, asciiQR } = await retrieveQR(waPage);
-    //   if (catchQR) {
-    //     catchQR(data, asciiQR);
-    //   }
-
-    //   if (mergedOptions.logQR) {
-    //     console.log(`Scan QR for: ${session}                `);
-    //     console.log(asciiQR);
-    //   }
-    // } else {
-    //   grabQRUntilInside(waPage, mergedOptions, session, catchQR);
-    // }
-
-    // Wait til inside chat
     let currentCode = '';
     const login = new Promise(async (resolve, reject) => {
       var check = true;
@@ -147,24 +140,23 @@ export async function create(
     });
     await login;
 
-    console.log('B');
-    //await isInsideChat(waPage).toPromise()
-    spinnies.succeed(`${session}-auth`, { text: 'Authenticated' });
+    console.log(`${session}: Authenticated`);
   }
 
-  console.log('C');
-  spinnies.add(`${session}-inject`, { text: 'Injecting api...' });
-  waPage = await injectApi(waPage);
-  spinnies.succeed(`${session}-inject`, { text: 'Injecting api' });
+  let tryInject = true;
+  while (tryInject) {
+    console.log(`${session}: Try Injecting api`);
+    try {
+      waPage = await injectApi(waPage);
+      tryInject = false;
+    } catch (e) {
+      console.log(`${session}: Injecting api error`);
+    }
 
-  if (mergedOptions.debug) {
-    const debugURL = `http://localhost:${readFileSync(
-      `./${session}/DevToolsActivePort`
-    ).slice(0, -54)}`;
-    console.log(`\nDebug: \x1b[34m${debugURL}\x1b[0m`);
+    if (tryInject) await sleep(5000);
   }
 
-  console.log('D');
+  console.log(`${session}: Injected`);
 
   return new Whatsapp(waPage);
 }
