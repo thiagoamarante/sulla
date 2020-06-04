@@ -37,20 +37,25 @@ export async function create(
     updatesChecked = true;
   }
 
+  let attempts = 0;
+
   // Initialize whatsapp
   const mergedOptions = { ...defaultOptions, ...options };
   let waPage: Page = null;
   let tryInitWhatsApp = true;
   while (tryInitWhatsApp) {
-    console.log(`${session}: Creating whatsapp instace`);
-    try {
-      waPage = await initWhatsapp(session, mergedOptions);
-      tryInitWhatsApp = false;
-    } catch (e) {
-      console.log(`${session}: InitWhatsapp error`);
-    }
+    attempts++;
+    if (attempts < 5) {
+      console.log(`${session}: Creating whatsapp instace`);
+      try {
+        waPage = await initWhatsapp(session, mergedOptions);
+        tryInitWhatsApp = false;
+      } catch (e) {
+        console.log(`${session}: InitWhatsapp error - ${e.toString()}`);
+      }
 
-    if (tryInitWhatsApp) await sleep(5000);
+      if (tryInitWhatsApp) await sleep(5000);
+    } else throw 'Error creating whatsapp';
   }
 
   console.log(`${session}: Authenticating`);
@@ -110,9 +115,12 @@ export async function create(
               waPage
                 .waitForFunction(
                   `
-              document.getElementsByClassName('app')[0] &&
-              document.getElementsByClassName('app')[0].attributes &&
-              !!document.getElementsByClassName('app')[0].attributes.tabindex
+                  (document.getElementsByClassName('app')[0] &&
+                  document.getElementsByClassName('app')[0].attributes &&
+                  !!document.getElementsByClassName('app')[0].attributes.tabindex) || 
+                  (document.getElementsByClassName('two')[0] && 
+                  document.getElementsByClassName('two')[0].attributes && 
+                  !!document.getElementsByClassName('two')[0].attributes.tabindex)
               `,
                   {
                     timeout: 20000,
@@ -143,17 +151,21 @@ export async function create(
     console.log(`${session}: Authenticated`);
   }
 
+  attempts = 0;
   let tryInject = true;
   while (tryInject) {
-    console.log(`${session}: Try Injecting api`);
-    try {
-      waPage = await injectApi(waPage);
-      tryInject = false;
-    } catch (e) {
-      console.log(`${session}: Injecting api error`);
-    }
+    attempts++;
+    if (attempts < 5) {
+      console.log(`${session}: Try Injecting api`);
+      try {
+        waPage = await injectApi(waPage);
+        tryInject = false;
+      } catch (e) {
+        console.log(`${session}: Injecting api error - ${e.toString()}`);
+      }
 
-    if (tryInject) await sleep(5000);
+      if (tryInject) await sleep(5000);
+    } else throw 'Error Try Injecting api';
   }
 
   console.log(`${session}: Injected`);
