@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import latestVersion from 'latest-version';
-import { Page } from 'puppeteer';
+import { Page, Browser } from 'puppeteer';
 import { from, interval, timer } from 'rxjs';
 import { map, takeUntil, tap, delay, switchMap } from 'rxjs/operators';
 import { Whatsapp } from '../api/whatsapp';
@@ -50,34 +50,71 @@ export async function create(
 
   // Initialize whatsapp
   const mergedOptions = { ...defaultOptions, ...options };
-
-  await callLog(`Start browser`);
-  const browser = await initBrowser(session, options);
-  let waPage = await getWhatsappPage(browser);
-  await waPage.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36'
-  );
-
+  let browser: Browser = null;
+  let waPage: Page = null;
   let attempts = 0;
-  let tryOpenWhatsAppWeb = true;
-  while (tryOpenWhatsAppWeb) {
+  let tryEnabled = true;
+  await callLog(`Start client`);
+
+  //open browser
+  while (tryEnabled) {
+    attempts++;
+    if (attempts < 5) {
+      await callLog(`Start browser`);
+      try {
+        browser = await initBrowser(session, options);
+        tryEnabled = false;
+      } catch (e) {
+        await callLog(`Start browser error - ${e.toString()}`);
+      }
+
+      if (tryEnabled) await sleep(10000);
+    } else throw 'Error Start browser';
+  }
+
+  //get page
+  attempts = 0;
+  tryEnabled = true;
+  while (tryEnabled) {
+    attempts++;
+    if (attempts < 5) {
+      await callLog(`Get page`);
+      try {
+        waPage = await getWhatsappPage(browser);
+        await waPage.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36'
+        );
+        tryEnabled = false;
+      } catch (e) {
+        await callLog(`Get page error - ${e.toString()}`);
+      }
+
+      if (tryEnabled) await sleep(10000);
+    } else throw 'Error Get page';
+  }
+
+  //open whatsapp web
+  attempts = 0;
+  tryEnabled = true;
+  while (tryEnabled) {
     attempts++;
     if (attempts < 5) {
       await callLog(`Opening WhatsApp Web`);
       try {
         await waPage.goto(puppeteerConfig.whatsappUrl);
-        tryOpenWhatsAppWeb = false;
+        tryEnabled = false;
       } catch (e) {
         await callLog(`Opening WhatsApp Web error - ${e.toString()}`);
       }
 
-      if (tryOpenWhatsAppWeb) await sleep(5000);
+      if (tryEnabled) await sleep(10000);
     } else throw 'Error Opening WhatsApp Web';
   }
 
   await callLog(`Authenticating`);
   const authenticated = await isAuthenticated(waPage);
 
+  //authentication
   if (authenticated) {
     await callLog(`Authenticated`);
   } else {
@@ -162,19 +199,19 @@ export async function create(
   }
 
   attempts = 0;
-  let tryInject = true;
-  while (tryInject) {
+  tryEnabled = true;
+  while (tryEnabled) {
     attempts++;
     if (attempts < 5) {
       await callLog(`Try Injecting api`);
       try {
         waPage = await injectApi(waPage);
-        tryInject = false;
+        tryEnabled = false;
       } catch (e) {
         await callLog(`Injecting api error - ${e.toString()}`);
       }
 
-      if (tryInject) await sleep(5000);
+      if (tryEnabled) await sleep(5000);
     } else throw 'Error Try Injecting api';
   }
 
