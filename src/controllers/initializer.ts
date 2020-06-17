@@ -28,6 +28,7 @@ function sleep(ms: number) {
 export async function create(
   session = 'session',
   catchQR?: (qrCode: string, asciiQR: string) => Promise<boolean>,
+  log?: (message: string) => Promise<void>,
   options?: CreateConfig
 ) {
   // Check for updates if needed
@@ -38,6 +39,9 @@ export async function create(
   }
 
   let attempts = 0;
+  let callLog = async (message) => {
+    if (log) await log(message);
+  };
 
   // Initialize whatsapp
   const mergedOptions = { ...defaultOptions, ...options };
@@ -46,26 +50,24 @@ export async function create(
   while (tryInitWhatsApp) {
     attempts++;
     if (attempts < 5) {
-      console.log(`${session}: Creating whatsapp instace`);
+      await callLog(`Creating whatsapp instace`);
       try {
         waPage = await initWhatsapp(session, mergedOptions);
         tryInitWhatsApp = false;
       } catch (e) {
-        console.log(`${session}: InitWhatsapp error - ${e.toString()}`);
+        await callLog(`InitWhatsapp error - ${e.toString()}`);
       }
 
       if (tryInitWhatsApp) await sleep(5000);
     } else throw 'Error creating whatsapp';
   }
 
-  console.log(`${session}: Authenticating`);
+  await callLog(`Authenticating`);
   const authenticated = await isAuthenticated(waPage);
 
   // If not authenticated, show QR and wait for scan
   if (authenticated) {
-    // Wait til inside chat
-    //await isInsideChat(waPage).toPromise();
-    console.log(`${session}: Authenticated`);
+    await callLog(`Authenticated`);
   } else {
     const login = new Promise(async (resolve, reject) => {
       var check = true;
@@ -96,11 +98,11 @@ export async function create(
                 });
               }
             } catch (e) {
-              console.log('error try reload QR Code');
+              await callLog('error try reload QR Code');
             }
           } else lastData = codes.data;
         } catch (e) {
-          console.log('error try get canvas');
+          await callLog('error try get canvas');
           codes = { code: null, data: null };
         }
 
@@ -144,7 +146,7 @@ export async function create(
     });
     await login;
 
-    console.log(`${session}: Authenticated`);
+    await callLog(`Authenticated`);
   }
 
   attempts = 0;
@@ -152,19 +154,19 @@ export async function create(
   while (tryInject) {
     attempts++;
     if (attempts < 5) {
-      console.log(`${session}: Try Injecting api`);
+      await callLog(`Try Injecting api`);
       try {
         waPage = await injectApi(waPage);
         tryInject = false;
       } catch (e) {
-        console.log(`${session}: Injecting api error - ${e.toString()}`);
+        await callLog(`Injecting api error - ${e.toString()}`);
       }
 
       if (tryInject) await sleep(5000);
     } else throw 'Error Try Injecting api';
   }
 
-  console.log(`${session}: Injected`);
+  await callLog(`Injected`);
 
   return new Whatsapp(waPage);
 }
