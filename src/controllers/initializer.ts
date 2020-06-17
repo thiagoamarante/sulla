@@ -7,13 +7,19 @@ import { Whatsapp } from '../api/whatsapp';
 import { CreateConfig, defaultOptions } from '../config/create-config';
 import { upToDate } from '../utils/semver';
 import { isAuthenticated, isInsideChat, retrieveQR } from './auth';
-import { initWhatsapp, injectApi } from './browser';
+import {
+  initWhatsapp,
+  injectApi,
+  initBrowser,
+  getWhatsappPage,
+} from './browser';
 import chalk = require('chalk');
 import boxen = require('boxen');
 import Spinnies = require('spinnies');
 import { rejects } from 'assert';
 const { version } = require('../../package.json');
 import * as path from 'path';
+import { puppeteerConfig } from '../config/puppeteer.config';
 
 // Global
 let updatesChecked = false;
@@ -38,34 +44,40 @@ export async function create(
     updatesChecked = true;
   }
 
-  let attempts = 0;
   let callLog = async (message) => {
     if (log) await log(message);
   };
 
   // Initialize whatsapp
   const mergedOptions = { ...defaultOptions, ...options };
-  let waPage: Page = null;
-  let tryInitWhatsApp = true;
-  while (tryInitWhatsApp) {
+
+  await callLog(`Start browser`);
+  const browser = await initBrowser(session, options);
+  let waPage = await getWhatsappPage(browser);
+  await waPage.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36'
+  );
+
+  let attempts = 0;
+  let tryOpenWhatsAppWeb = true;
+  while (tryOpenWhatsAppWeb) {
     attempts++;
     if (attempts < 5) {
-      await callLog(`Creating whatsapp instace`);
+      await callLog(`Opening WhatsApp Web`);
       try {
-        waPage = await initWhatsapp(session, mergedOptions);
-        tryInitWhatsApp = false;
+        await waPage.goto(puppeteerConfig.whatsappUrl);
+        tryOpenWhatsAppWeb = false;
       } catch (e) {
-        await callLog(`InitWhatsapp error - ${e.toString()}`);
+        await callLog(`Opening WhatsApp Web error - ${e.toString()}`);
       }
 
-      if (tryInitWhatsApp) await sleep(5000);
-    } else throw 'Error creating whatsapp';
+      if (tryOpenWhatsAppWeb) await sleep(5000);
+    } else throw 'Error Opening WhatsApp Web';
   }
 
   await callLog(`Authenticating`);
   const authenticated = await isAuthenticated(waPage);
 
-  // If not authenticated, show QR and wait for scan
   if (authenticated) {
     await callLog(`Authenticated`);
   } else {

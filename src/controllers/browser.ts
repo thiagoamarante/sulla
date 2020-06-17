@@ -46,7 +46,7 @@ export async function injectApi(page: Page) {
  * Initializes browser, will try to use chrome as default
  * @param session
  */
-async function initBrowser(
+export async function initBrowser(
   session: string,
   options: CreateConfig,
   extras = {}
@@ -77,7 +77,7 @@ async function initBrowser(
   return browser;
 }
 
-async function getWhatsappPage(browser: Browser) {
+export async function getWhatsappPage(browser: Browser) {
   const pages = await browser.pages();
   console.assert(pages.length > 0);
   return pages[0];
