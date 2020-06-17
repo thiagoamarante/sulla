@@ -67,71 +67,67 @@ export async function create(
     //await isInsideChat(waPage).toPromise();
     console.log(`${session}: Authenticated`);
   } else {
-    let currentCode = '';
     const login = new Promise(async (resolve, reject) => {
       var check = true;
       var result = false;
+      var lastData = null;
       while (check) {
         let codes = { code: null, data: null };
         try {
           await waPage.waitForSelector('canvas', { timeout: 2000 });
-          await waPage.addScriptTag({
-            path: require.resolve(
-              path.join(__dirname, '../lib/jsQR', 'jsQR.js')
-            ),
-          });
           codes = await waPage.evaluate(() => {
             const canvas = document.querySelector('canvas');
-            const context = canvas.getContext('2d');
-
-            // @ts-ignore
-            const code = jsQR(
-              context.getImageData(0, 0, canvas.width, canvas.height).data,
-              canvas.width,
-              canvas.height
-            );
-
-            return { code: code.data, data: canvas.toDataURL() };
+            return { code: null, data: canvas.toDataURL() };
           });
+
+          if (codes.data == lastData) {
+            try {
+              var element = await waPage.waitForXPath(
+                "//div[contains(text(), 'Click to reload QR code')]",
+                { timeout: 10000 }
+              );
+
+              if (element) {
+                await element.click();
+
+                codes = await waPage.evaluate(() => {
+                  const canvas = document.querySelector('canvas');
+                  return { code: null, data: canvas.toDataURL() };
+                });
+              }
+            } catch (e) {
+              console.log('error try reload QR Code');
+            }
+          } else lastData = codes.data;
         } catch (e) {
+          console.log('error try get canvas');
           codes = { code: null, data: null };
         }
 
-        if (codes.data == currentCode) {
-          try {
-            var element = await waPage.waitForXPath(
-              "//div[contains(text(), 'Click to reload QR code')]",
-              { timeout: 10000 }
-            );
-            if (element) {
-              await element.click();
-            }
-          } catch (e) {}
-        } else {
-          currentCode = codes.data;
-          check = await catchQR(codes.data, '');
-          if (check) {
-            result = await from(
-              waPage
-                .waitForFunction(
-                  `
-                  (document.getElementsByClassName('app')[0] &&
-                  document.getElementsByClassName('app')[0].attributes &&
-                  !!document.getElementsByClassName('app')[0].attributes.tabindex) || 
-                  (document.getElementsByClassName('two')[0] && 
-                  document.getElementsByClassName('two')[0].attributes && 
-                  !!document.getElementsByClassName('two')[0].attributes.tabindex)
-              `,
-                  {
-                    timeout: 20000,
-                  }
-                )
-                .then(() => true)
-                .catch(() => false)
-            ).toPromise();
+        if (codes.data) check = await catchQR(codes.data, '');
+        else check = true;
 
-            if (result) check = false;
-          }
+        if (check) {
+          result = await from(
+            waPage
+              .waitForFunction(
+                `
+                (document.getElementsByClassName('app')[0] &&
+                document.getElementsByClassName('app')[0].attributes &&
+                !!document.getElementsByClassName('app')[0].attributes.tabindex) || 
+                (document.getElementsByClassName('two')[0] && 
+                document.getElementsByClassName('two')[0].attributes && 
+                !!document.getElementsByClassName('two')[0].attributes.tabindex)
+            `,
+                {
+                  timeout: 20000,
+                }
+              )
+              .then(() => true)
+              .catch(() => false)
+          ).toPromise();
+
+          if (result) check = false;
         }
       }
 
