@@ -38,11 +38,19 @@ declare module WAPI {
     includeMe: boolean,
     includeNotifications: boolean
   ) => Message[];
+  const getMessageById: (mesasgeId: string) => Message;
 }
 
 export class RetrieverLayer extends SenderLayer {
   constructor(page: Page) {
     super(page);
+  }
+
+  public async getMessageById(messageId: string) {
+    return await this.page.evaluate(
+      (messageId) => WAPI.getMessageById(messageId),
+      messageId
+    );
   }
 
   /**
