@@ -28,7 +28,10 @@ export const storeObjects = [
     id: 'GroupInvite',
     conditions: (module) => (module.queryGroupInviteCode ? module : null),
   },
-  { id: 'Wap', conditions: (module) => (module.createGroup ? module : null) },
+  {
+    id: 'Wap',
+    conditions: (module) => (module.createGroup ? module : null),
+  },
   {
     id: 'ServiceWorker',
     conditions: (module) =>
@@ -94,6 +97,14 @@ export const storeObjects = [
     conditions: (module) => (module.sendSeen ? module.sendSeen : null),
   },
   {
+    id: 'Archive',
+    conditions: (module) => (module.setArchive ? module : null),
+  },
+  {
+    id: 'pinChat',
+    conditions: (module) => (module.setPin ? module : null),
+  },
+  {
     id: 'sendDelete',
     conditions: (module) => (module.sendDelete ? module.sendDelete : null),
   },
@@ -124,7 +135,7 @@ export const storeObjects = [
     id: 'MsgKey',
     conditions: (module) =>
       module.default &&
-      module.default.toString().includes('MsgKey error: id is already a MsgKey')
+      module.default.toString().includes('MsgKey error: obj is null/undefined')
         ? module.default
         : null,
   },
@@ -260,4 +271,34 @@ export const storeObjects = [
     conditions: (module) =>
       module.default && module.default.openChatFromUnread ? module : null,
   },
+  {
+    id: 'ReadSeen',
+    conditions: (module) => (module.sendSeen ? module : null),
+  },
+  {
+    id: 'Block',
+    conditions: (module) =>
+      module.blockContact && module.unblockContact ? module : null,
+  },
+  {
+    id: 'BlockList',
+    conditions: (module) => (module.BlocklistCollection ? module : null),
+  },
+  {
+    id: 'Theme',
+    conditions: (module) =>
+      module.getTheme && module.setTheme ? module : null,
+  },
+  {
+    id: 'Vcard',
+    conditions: (module) => (module.vcardFromContactModel ? module : null),
+  },
+  {
+    id: 'Profile',
+    conditions: (module) =>
+      module.sendSetPicture && module.requestDeletePicture ? module : null,
+  },
+  //{
+  //   id: "Presence", conditions: (module) => ( module.setPresenceAvailable &&  module.setPresenceUnavailable) ? module : null
+  //},
 ];
