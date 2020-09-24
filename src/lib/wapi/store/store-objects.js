@@ -112,11 +112,12 @@ export const storeObjects = [
     conditions: (module) => (module.Catalog ? module.Catalog : null),
   },
   {
-    id: 'bp',
+    id: 'Perfil',
     conditions: (module) =>
-      module.default &&
-      module.default.toString().includes('binaryProtocol deprecated version')
-        ? module.default
+      module.__esModule === true &&
+      module.setPushname &&
+      !module.getComposeContents
+        ? module
         : null,
   },
   {

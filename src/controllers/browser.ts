@@ -11,7 +11,7 @@ export async function initWhatsapp(session: string, options: CreateConfig) {
   const browser = await initBrowser(session, options);
   const waPage = await getWhatsappPage(browser);
   await waPage.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36'
+    'WhatsApp/2.2037.6 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
   );
 
   await waPage.goto(puppeteerConfig.whatsappUrl);
@@ -19,26 +19,32 @@ export async function initWhatsapp(session: string, options: CreateConfig) {
 }
 
 export async function injectApi(page: Page) {
+  console.log('A');
   await page.waitForFunction(() => {
     // @ts-ignore
     return webpackJsonp !== undefined;
   });
 
+  console.log('B');
   await page.addScriptTag({
     path: require.resolve(path.join(__dirname, '../lib/wapi', 'wapi.js')),
   });
+
+  console.log('C');
   await page.addScriptTag({
     path: require.resolve(
       path.join(__dirname, '../lib/middleware', 'middleware.js')
     ),
   });
 
+  console.log('D');
   // Make sure WAPI is initialized
   await page.waitForFunction(() => {
     // @ts-ignore
     return !!WAPI.getWAVersion;
   });
 
+  console.log('E');
   return page;
 }
 

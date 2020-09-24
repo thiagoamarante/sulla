@@ -203,7 +203,7 @@ export async function create(
   while (tryEnabled) {
     attempts++;
     if (attempts < 5) {
-      await callLog(`Try Injecting api`);
+      await callLog(`Try Injecting api - 2`);
       try {
         waPage = await injectApi(waPage);
         tryEnabled = false;
